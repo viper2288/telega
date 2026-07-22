@@ -120,19 +120,14 @@ jobs:
           arch: x64
 
       # ── 7. NuGet ───────────────────────────────────────────────────────────
-      - name: Setup NuGet
-        shell: pwsh
+      # windows-latest already ships nuget.exe on PATH.
+      # Use CMD shell + "& exit 0" to suppress non-zero from sources Add
+      # when the feed already exists — this is the same trick used in win.yml.
+      - name: Setup NuGet sources
+        shell: cmd
         run: |
-          $dest = "$env:TBUILD\ThirdParty\NuGet"
-          if (-not (Test-Path "$dest\nuget.exe")) {
-            New-Item -Force -ItemType Directory $dest | Out-Null
-            Invoke-WebRequest `
-              -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" `
-              -OutFile "$dest\nuget.exe"
-          }
-          Add-Content $env:GITHUB_PATH $dest
-          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages" 2>$null
-          nuget sources Add    -Source https://api.nuget.org/v3/index.json   2>$null
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
 
       # ── 8. Python helpers ──────────────────────────────────────────────────
       - name: Install Python helpers
@@ -165,16 +160,15 @@ jobs:
           )
           echo Using Qt: %QT_DIR%
 
-          cmake %TBUILD%\%REPO% ^
-            -B %TBUILD%\%REPO%\out ^
+          cmake "%TBUILD%\%REPO%" ^
+            -B "%TBUILD%\%REPO%\out" ^
             -G "Ninja Multi-Config" ^
             -D CMAKE_CONFIGURATION_TYPES=Debug ^
-            -D CMAKE_PREFIX_PATH="%QT_DIR%;%PREFIX%" ^
+            -D "CMAKE_PREFIX_PATH=%QT_DIR%;%PREFIX%" ^
             -D TDESKTOP_API_ID=%API_ID% ^
             -D TDESKTOP_API_HASH=%API_HASH% ^
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
             -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON ^
-            -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
             -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
             -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF
 

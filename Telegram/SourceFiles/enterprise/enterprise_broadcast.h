@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/producer.h>
 #include <rpl/variable.h>
 
-#include <set>
-
 namespace Main {
 class Session;
 } // namespace Main
@@ -64,7 +62,7 @@ private:
 	base::Timer _timer;
 	bool _enabled = false;
 	MsgId _lastCheckedMsgId = 0;
-	std::set<uint64_t> _processedPairs;
+	base::flat_set<uint64> _processedPairs;
 	rpl::variable<BroadcastStatus> _status;
 	rpl::lifetime _lifetime;
 

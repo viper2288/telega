@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
 
@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "enterprise/enterprise_broadcast.h"
 
 #include "apiwrap.h"
+#include "api/api_common.h"
 #include "base/call_delayed.h"
 #include "base/unixtime.h"
 #include "data/data_folder.h"
@@ -16,12 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/business/data_shortcut_messages.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "dialogs/dialogs_list.h"
 #include "dialogs/dialogs_main_list.h"
+#include "dialogs/dialogs_row.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
-#include "api/api_common.h"
 
 namespace Enterprise {
 namespace {
@@ -69,9 +71,6 @@ std::vector<BroadcastService::Target> BroadcastService::collectTargets() const {
 	auto result = std::vector<Target>();
 	const auto now = base::unixtime::now();
 	const auto list = _session->data().chatsList();
-	if (!list) {
-		return result;
-	}
 	for (const auto &row : list->indexed()->all()) {
 		const auto history = row->history();
 		if (!history) {
@@ -109,7 +108,7 @@ bool BroadcastService::isDuplicate(MsgId msgId, PeerId peerId) const {
 }
 
 void BroadcastService::markProcessed(MsgId msgId, PeerId peerId) {
-	_processedPairs.insert(MakePairKey(msgId, peerId));
+	_processedPairs.emplace(MakePairKey(msgId, peerId));
 }
 
 void BroadcastService::scheduleNextCheck() {
@@ -183,7 +182,6 @@ void BroadcastService::sendToNext(
 
 	using Flag = MTPmessages_ForwardMessages::Flag;
 	const auto flags = Flag::f_drop_author;
-
 	const auto randomId = QRandomGenerator::global()->generate64();
 	const auto rawMsgId = int32(msgId.msg.bare);
 
