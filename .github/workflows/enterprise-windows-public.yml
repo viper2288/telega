@@ -1,0 +1,203 @@
+﻿name: Enterprise Edition — Windows (Public CI)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Self-contained Windows build that does NOT rely on Telegram's private
+# CI infrastructure (run_cmake, depot runners, closed library caches).
+#
+# Strategy
+# ────────
+#  • Uses windows-latest (MSVC 2022, x64) — a standard GitHub-hosted runner
+#  • Calls the official prepare.py to clone & compile all C++ dependencies
+#    (Qt 5.15, OpenSSL, FFmpeg, OpenAL-Soft, etc.) from public git sources
+#  • Configures Telegram with plain `cmake` — bypassing configure.py entirely
+#  • Three-layer dependency cache keyed on prepare.py SHA-256:
+#      layer 1 – ThirdParty tools (msys2, jom, gyp, nuget, python)
+#      layer 2 – compiled libraries excluding Qt
+#      layer 3 – Qt 5.15 (largest, rarest change)
+#    Cold run ≈ 4–6 h  |  Warm run ≈ 20–40 min
+#
+# Trigger
+# ───────
+#  • Every push to `enterprise` branch (excluding docs/workflows)
+#  • Manual dispatch via GitHub UI
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [enterprise]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Windows x64 — MSVC Debug
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    env:
+      # Directory layout expected by prepare.py:
+      #   %TBUILD%/                   ← root (prepare.py navigates here)
+      #     telega/                   ← repo checkout
+      #     Libraries/win64/          ← compiled libs (LIBS_DIR)
+      #     ThirdParty/               ← build tools
+      TBUILD: ${{ github.workspace }}\TBuild
+      REPO:   telega
+      # Public test credentials (official tdesktop docs, rate-limited)
+      API_ID:   17349
+      API_HASH: 344583e45741c457fe1862106095a5eb
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      # ── 0. Directory skeleton ──────────────────────────────────────────────
+      - name: Create TBuild directory tree
+        shell: pwsh
+        run: |
+          foreach ($d in @(
+            "$env:TBUILD\Libraries\win64\cache_keys",
+            "$env:TBUILD\ThirdParty\cache_keys"
+          )) { New-Item -ItemType Directory -Force $d | Out-Null }
+
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: TBuild\${{ env.REPO }}
+
+      # ── 2. Cache key from prepare.py content hash ──────────────────────────
+      - name: Compute dependency cache key
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash `
+            "$env:TBUILD\$env:REPO\Telegram\build\prepare\prepare.py" `
+            -Algorithm SHA256).Hash.ToLower()
+          "DEPS_KEY=win64-$h" | Out-File -Append $env:GITHUB_ENV
+
+      # ── 3. ThirdParty cache (msys2, jom, gyp, NuGet, Python) ──────────────
+      - name: Restore ThirdParty cache
+        id: c-tp
+        uses: actions/cache@v4
+        with:
+          path: TBuild\ThirdParty
+          key:          ${{ env.DEPS_KEY }}-thirdparty
+          restore-keys: win64-thirdparty-
+
+      # ── 4. Libraries cache (all compiled libs except Qt) ───────────────────
+      - name: Restore Libraries cache (non-Qt)
+        id: c-libs
+        uses: actions/cache@v4
+        with:
+          path: |
+            TBuild\Libraries\win64
+            !TBuild\Libraries\win64\Qt-*
+            !TBuild\Libraries\win64\qt_5*
+            !TBuild\Libraries\win64\qt_6*
+          key:          ${{ env.DEPS_KEY }}-libs
+          restore-keys: win64-libs-
+
+      # ── 5. Qt cache (largest artifact, separate key) ───────────────────────
+      - name: Restore Qt cache
+        id: c-qt
+        uses: actions/cache@v4
+        with:
+          path: |
+            TBuild\Libraries\win64\Qt-*
+            TBuild\Libraries\win64\qt_5*
+            TBuild\Libraries\win64\qt_6*
+          key:          ${{ env.DEPS_KEY }}-qt5
+          restore-keys: win64-qt5-
+
+      # ── 6. MSVC x64 environment ────────────────────────────────────────────
+      - name: Setup MSVC x64 Native Tools
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # ── 7. NuGet ───────────────────────────────────────────────────────────
+      - name: Setup NuGet
+        shell: pwsh
+        run: |
+          $dest = "$env:TBUILD\ThirdParty\NuGet"
+          if (-not (Test-Path "$dest\nuget.exe")) {
+            New-Item -Force -ItemType Directory $dest | Out-Null
+            Invoke-WebRequest `
+              -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" `
+              -OutFile "$dest\nuget.exe"
+          }
+          Add-Content $env:GITHUB_PATH $dest
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages" 2>$null
+          nuget sources Add    -Source https://api.nuget.org/v3/index.json   2>$null
+
+      # ── 8. Python helpers ──────────────────────────────────────────────────
+      - name: Install Python helpers
+        shell: pwsh
+        run: pip install pywin32 six --quiet
+
+      # ── 9. Build dependencies (prepare.py) ────────────────────────────────
+      # prepare.py is cache-aware: it hashes each stage and skips already-built
+      # ones.  On a warm runner this step finishes in seconds.
+      - name: Build / verify dependencies
+        working-directory: TBuild\${{ env.REPO }}
+        run: |
+          python Telegram\build\prepare\prepare.py skip-release silent
+
+      # ── 10. CMake configure ────────────────────────────────────────────────
+      # We reproduce what run_cmake (the private module) does:
+      #   - Source root is the repo root (contains root CMakeLists.txt)
+      #   - CMAKE_PREFIX_PATH points at Libraries\win64\local (prepared prefix)
+      #   - Qt is found at Libraries\win64\Qt-5.15.XX
+      #
+      - name: CMake configure
+        run: |
+          set LIBS=%TBUILD%\Libraries\win64
+          set PREFIX=%LIBS%\local
+
+          for /d %%Q in ("%LIBS%\Qt-5*") do set QT_DIR=%%Q
+          if not defined QT_DIR (
+            echo ERROR: Qt directory not found under %LIBS%
+            exit /b 1
+          )
+          echo Using Qt: %QT_DIR%
+
+          cmake %TBUILD%\%REPO% ^
+            -B %TBUILD%\%REPO%\out ^
+            -G "Ninja Multi-Config" ^
+            -D CMAKE_CONFIGURATION_TYPES=Debug ^
+            -D CMAKE_PREFIX_PATH="%QT_DIR%;%PREFIX%" ^
+            -D TDESKTOP_API_ID=%API_ID% ^
+            -D TDESKTOP_API_HASH=%API_HASH% ^
+            -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
+            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON ^
+            -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
+            -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
+            -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF
+
+      # ── 11. Build ──────────────────────────────────────────────────────────
+      - name: Build Telegram.exe
+        run: |
+          cmake --build %TBUILD%\%REPO%\out --config Debug --target Telegram --parallel
+
+      # ── 12. Collect & upload artifact ─────────────────────────────────────
+      - name: Collect artifact
+        shell: pwsh
+        run: |
+          $out = "$env:TBUILD\$env:REPO\out\Debug"
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          foreach ($f in @("Telegram.exe","Updater.exe")) {
+            $src = Join-Path $out $f
+            if (Test-Path $src) { Copy-Item $src artifact\ }
+          }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-Enterprise-Win64-${{ github.sha }}
+          path: artifact\
+          retention-days: 14
+          if-no-files-found: warn

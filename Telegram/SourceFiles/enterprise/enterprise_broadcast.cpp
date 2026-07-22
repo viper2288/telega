@@ -1,4 +1,4 @@
-﻿/*
+/*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
 
@@ -13,12 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
+#include "data/business/data_shortcut_messages.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_main_list.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
+#include "api/api_common.h"
 
 namespace Enterprise {
 namespace {
@@ -178,17 +181,28 @@ void BroadcastService::sendToNext(
 		return;
 	}
 
-	const auto fromPeer = _session->user();
+	using Flag = MTPmessages_ForwardMessages::Flag;
+	const auto flags = Flag::f_drop_author;
+
+	const auto randomId = QRandomGenerator::global()->generate64();
+	const auto rawMsgId = int32(msgId.msg.bare);
+
 	_session->api().request(MTPmessages_ForwardMessages(
-		MTP_flags(MTPmessages_ForwardMessages::Flag::f_drop_author),
-		fromPeer->input,
-		MTP_vector<MTPint>(1, MTP_int(msgId.msg)),
-		MTP_vector<MTPlong>(1, MTP_long(
-			QRandomGenerator::global()->generate64())),
-		peer->input,
+		MTP_flags(flags),
+		MTP_inputPeerSelf(),
+		MTP_vector<MTPint>(1, MTP_int(rawMsgId)),
+		MTP_vector<MTPlong>(1, MTP_long(randomId)),
+		peer->input(),
+		MTPint(),
+		MTPInputReplyTo(),
 		MTPint(),
 		MTPint(),
-		MTPInputQuickReplyShortcut()
+		MTP_inputPeerEmpty(),
+		Data::ShortcutIdToMTP(_session, 0),
+		MTPlong(),
+		MTPint(),
+		MTPlong(),
+		Api::SuggestToMTP({})
 	)).done([=, targets = std::move(targets)](const MTPUpdates &) mutable {
 		markProcessed(msgId.msg, peer->id);
 
