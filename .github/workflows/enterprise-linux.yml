@@ -1,4 +1,4 @@
-﻿name: Enterprise Edition — Linux (Docker)
+name: Enterprise Edition — Linux (Docker)
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
         run: bash Telegram/build/docker/centos_env/build_debug.sh
 
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Telegram-Enterprise-Linux-${{ github.sha }}
           path: out/Debug/Telegram
