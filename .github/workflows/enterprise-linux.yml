@@ -1,4 +1,4 @@
-﻿name: Enterprise Edition — Linux (Docker)
+name: Enterprise Edition — Linux (Docker)
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
         run: docker info
 
       - name: Cache build output
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: out/
           key: tdesktop-enterprise-linux-${{ github.sha }}
