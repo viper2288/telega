@@ -1,0 +1,37 @@
+﻿name: Enterprise Edition — Linux (Docker)
+
+on:
+  push:
+    branches: [enterprise]
+  pull_request:
+    branches: [enterprise]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check Docker
+        run: docker info
+
+      - name: Cache build output
+        uses: actions/cache@v4
+        with:
+          path: out/
+          key: tdesktop-enterprise-linux-${{ github.sha }}
+          restore-keys: tdesktop-enterprise-linux-
+
+      - name: Build via official Docker image
+        run: bash Telegram/build/docker/centos_env/build_debug.sh
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-Enterprise-Linux-${{ github.sha }}
+          path: out/Debug/Telegram
+          retention-days: 14

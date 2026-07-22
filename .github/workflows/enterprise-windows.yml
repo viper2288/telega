@@ -1,0 +1,29 @@
+﻿name: Enterprise Edition — Windows (self-hosted)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Requires a self-hosted runner with:
+    #   - Windows 10/11 + Visual Studio 2022 (x64)
+    #   - L:\Telegram\win64\Libraries pre-built dependencies
+    #   - CMake build tree configured at L:\Telegram\tdesktop\out\
+    # Setup guide: https://github.com/telegramdesktop/tdesktop/blob/master/docs/building-win-x64.md
+    runs-on: [self-hosted, windows, x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Debug
+        shell: cmd
+        run: cmake --build out --config Debug --target Telegram
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-Enterprise-Win64-${{ github.sha }}
+          path: out\Debug\Telegram.exe
+          retention-days: 14
