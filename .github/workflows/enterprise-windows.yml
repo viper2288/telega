@@ -1,4 +1,4 @@
-﻿name: Enterprise Edition — Windows (self-hosted)
+name: Enterprise Edition — Windows (self-hosted)
 
 on:
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
         run: cmake --build out --config Debug --target Telegram
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Telegram-Enterprise-Win64-${{ github.sha }}
           path: out\Debug\Telegram.exe
