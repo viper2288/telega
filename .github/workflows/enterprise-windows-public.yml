@@ -170,13 +170,15 @@ jobs:
           set QT_VER=%QT_VER:Qt-=%
           echo Qt version: %QT_VER%
 
+          set QT=%QT_VER%
+
           cmake "%TBUILD%\%REPO%" ^
             -B "%TBUILD%\%REPO%\out" ^
             -G "Ninja Multi-Config" ^
             -D CMAKE_CONFIGURATION_TYPES=Debug ^
             -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
             -D "libs_loc=%LIBS%" ^
-            -D QT=%QT_VER% ^
+            -D qt_requested=%QT_VER% ^
             -D "CMAKE_PREFIX_PATH=%QT_DIR%;%LIBS%\local" ^
             -D TDESKTOP_API_ID=%API_ID% ^
             -D TDESKTOP_API_HASH=%API_HASH% ^
