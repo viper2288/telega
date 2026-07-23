@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
 
+#include <QRandomGenerator>
+
 namespace Enterprise {
 namespace {
 
@@ -169,8 +171,7 @@ void BroadcastService::sendToNext(
 
 	if (isDuplicate(msgId.msg, peer->id)) {
 		const auto range = int(kDelayMaxMs - kDelayMinMs);
-		const auto delay = kDelayMinMs
-			+ QRandomGenerator::global()->bounded(range);
+		const auto delay = kDelayMinMs + QRandomGenerator::global()->bounded(range);
 		base::call_delayed(
 			delay,
 			_session,
@@ -205,8 +206,7 @@ void BroadcastService::sendToNext(
 		markProcessed(msgId.msg, peer->id);
 
 		const auto range = int(kDelayMaxMs - kDelayMinMs);
-		const auto delay = kDelayMinMs
-			+ QRandomGenerator::global()->bounded(range);
+		const auto delay = kDelayMinMs + QRandomGenerator::global()->bounded(range);
 		base::call_delayed(
 			delay,
 			_session,
