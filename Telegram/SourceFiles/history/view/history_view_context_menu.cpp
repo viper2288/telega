@@ -1090,9 +1090,7 @@ void AddBroadcastToGroupsAction(
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
 	const auto item = request.item;
-	if (!item
-		|| !item->isRegular()
-		|| !request.selectedItems.empty()) {
+	if (!item || !request.selectedItems.empty()) {
 		return;
 	}
 	const auto controller = list->controller();
