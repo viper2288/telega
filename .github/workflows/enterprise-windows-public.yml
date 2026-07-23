@@ -33,33 +33,37 @@ jobs:
             "$env:TBUILD\ThirdParty\cache_keys"
           )) { New-Item -ItemType Directory -Force $d | Out-Null }
 
-      - name: Checkout repository
+      # Use upstream tdesktop v7.0.4 which has all submodules correctly indexed.
+      # Our fork is missing all gitlinks (git ls-tree shows no 160000 entries),
+      # so submodules: recursive on our fork produces empty directories.
+      - name: Checkout upstream tdesktop v7.0.4
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          repository: telegramdesktop/tdesktop
+          ref: v7.0.4
+          submodules: true
           path: TBuild\${{ env.REPO }}
 
-      - name: Checkout cmake_helpers
-        run: git clone --depth 1 https://github.com/desktop-app/cmake_helpers.git "%TBUILD%\%REPO%\cmake"
-
-      - name: Checkout missing submodules
+      # Overlay our enterprise-specific source files on top of the upstream tree.
+      # Only the files that differ from upstream are downloaded from our fork.
+      - name: Apply enterprise changes
         shell: pwsh
         run: |
-          $base = "$env:TBUILD\$env:REPO\Telegram\ThirdParty"
-          $subs = @(
-            @{ path = "cmark-gfm"; url = "https://github.com/github/cmark-gfm.git";    sha = "587a12bb54d95ac37241377e6ddc93ea0e45439b" },
-            @{ path = "GSL";       url = "https://github.com/Microsoft/GSL.git";        sha = "87f9d768866548b5b86e72be66c60c5abd4d9b37" }
+          $dst  = "$env:TBUILD\$env:REPO"
+          $base = "https://raw.githubusercontent.com/viper2288/telega/enterprise"
+          $files = @(
+            "Telegram/SourceFiles/enterprise/enterprise_broadcast.cpp",
+            "Telegram/SourceFiles/enterprise/enterprise_broadcast.h",
+            "Telegram/SourceFiles/settings/sections/settings_advanced.cpp",
+            "Telegram/SourceFiles/history/view/history_view_context_menu.cpp",
+            "Telegram/CMakeLists.txt"
           )
-          foreach ($s in $subs) {
-            $dir = Join-Path $base $s.path
-            if (-not (Test-Path (Join-Path $dir ".git"))) {
-              Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
-              git clone --depth 1 $s.url $dir
-              git -C $dir fetch --depth 1 origin $s.sha
-              git -C $dir checkout $s.sha
-            } else {
-              Write-Host "$($s.path) already checked out"
-            }
+          foreach ($f in $files) {
+            $url  = "$base/$f"
+            $dest = "$dst\$($f.Replace('/', '\'))"
+            New-Item -ItemType Directory -Force (Split-Path $dest) | Out-Null
+            Write-Host "Downloading $f"
+            Invoke-WebRequest $url -OutFile $dest -UseBasicParsing
           }
 
       - name: Compute dependency cache key
