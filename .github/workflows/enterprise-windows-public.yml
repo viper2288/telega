@@ -158,7 +158,6 @@ jobs:
       - name: CMake configure
         run: |
           set LIBS=%TBUILD%\Libraries\win64
-          set PREFIX=%LIBS%\local
 
           for /d %%Q in ("%LIBS%\Qt-5*") do set QT_DIR=%%Q
           if not defined QT_DIR (
@@ -167,16 +166,22 @@ jobs:
           )
           echo Using Qt: %QT_DIR%
 
+          for %%F in ("%QT_DIR%") do set QT_VER=%%~nxF
+          set QT_VER=%QT_VER:Qt-=%
+          echo Qt version: %QT_VER%
+
           cmake "%TBUILD%\%REPO%" ^
             -B "%TBUILD%\%REPO%\out" ^
             -G "Ninja Multi-Config" ^
             -D CMAKE_CONFIGURATION_TYPES=Debug ^
-            -D "CMAKE_PREFIX_PATH=%QT_DIR%;%PREFIX%" ^
+            -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
+            -D "libs_loc=%LIBS%" ^
+            -D QT=%QT_VER% ^
+            -D "CMAKE_PREFIX_PATH=%QT_DIR%;%LIBS%\local" ^
             -D TDESKTOP_API_ID=%API_ID% ^
             -D TDESKTOP_API_HASH=%API_HASH% ^
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
             -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON ^
-            -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
             -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF
 
       # ── 11. Build ──────────────────────────────────────────────────────────
