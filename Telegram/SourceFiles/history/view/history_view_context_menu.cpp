@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
 
@@ -1098,10 +1098,10 @@ void AddBroadcastToGroupsAction(
 	const auto controller = list->controller();
 	const auto itemId = item->fullId();
 	menu->addAction(
-		tr::lng_enterprise_broadcast_action(tr::now),
+		u"Broadcast to Groups"_q,
 		[=] {
 			if (const auto i = controller->session().data().message(itemId)) {
-				controller->session().broadcastService().broadcastMessage(
+				Enterprise::GetService(&controller->session()).broadcastMessage(
 					i->fullId());
 			}
 		},

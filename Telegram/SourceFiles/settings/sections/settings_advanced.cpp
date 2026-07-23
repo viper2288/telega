@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
 
@@ -1271,11 +1271,11 @@ void BuildEnterpriseBroadcastSection(SectionBuilder &builder) {
 	builder.addSkip();
 	builder.addSubsectionTitle({
 		.id = u"advanced/enterprise"_q,
-		.title = tr::lng_enterprise_section_title(),
+		.title = rpl::single(u"Enterprise Broadcast"_q),
 		.keywords = { u"broadcast"_q, u"enterprise"_q, u"auto"_q },
 	});
 
-	auto statusLabel = session->broadcastService().statusValue(
+	auto statusLabel = Enterprise::GetService(session).statusValue(
 	) | rpl::map([](const Enterprise::BroadcastStatus &s) -> QString {
 		if (s.state == Enterprise::BroadcastState::Idle) {
 			return u"Status: Idle"_q;
@@ -1287,11 +1287,11 @@ void BuildEnterpriseBroadcastSection(SectionBuilder &builder) {
 
 	const auto autoBroadcast = builder.addButton({
 		.id = u"advanced/enterprise_auto_broadcast"_q,
-		.title = tr::lng_enterprise_auto_broadcast(),
+		.title = rpl::single(u"Auto Broadcast to Groups"_q),
 		.st = &st::settingsButtonNoIcon,
 		.label = std::move(statusLabel),
 		.toggled = rpl::single(
-			session->settings().enterpriseAutoBroadcast()),
+			Enterprise::IsEnabled(session)),
 		.keywords = {
 			u"broadcast"_q,
 			u"saved"_q,
@@ -1303,11 +1303,9 @@ void BuildEnterpriseBroadcastSection(SectionBuilder &builder) {
 	if (autoBroadcast) {
 		autoBroadcast->toggledValue(
 		) | rpl::filter([=](bool checked) {
-			return (checked != session->settings().enterpriseAutoBroadcast());
+			return (checked != Enterprise::IsEnabled(session));
 		}) | rpl::on_next([=](bool checked) {
-			session->settings().setEnterpriseAutoBroadcast(checked);
-			session->broadcastService().setEnabled(checked);
-			session->saveSettingsDelayed();
+			Enterprise::SetEnabled(session, checked);
 		}, autoBroadcast->lifetime());
 	}
 

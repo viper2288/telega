@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_response.h"
 
 #include <QRandomGenerator>
+#include <map>
+#include <memory>
 
 namespace Enterprise {
 namespace {
@@ -232,6 +234,38 @@ void BroadcastService::sendToNext(
 				sendToNext(msgId, std::move(targets), index + 1);
 			});
 	}).send();
+}
+
+} // namespace Enterprise
+
+namespace Enterprise {
+namespace {
+
+std::map<Main::Session*, std::unique_ptr<BroadcastService>> gServices;
+std::map<Main::Session*, bool> gEnabledStates;
+
+} // namespace
+
+BroadcastService &GetService(not_null<Main::Session*> session) {
+	auto &ptr = gServices[session];
+	if (!ptr) {
+		ptr = std::make_unique<BroadcastService>(session);
+		const auto it = gEnabledStates.find(session);
+		if (it != gEnabledStates.end() && it->second) {
+			ptr->setEnabled(true);
+		}
+	}
+	return *ptr;
+}
+
+bool IsEnabled(not_null<Main::Session*> session) {
+	const auto it = gEnabledStates.find(session);
+	return (it != gEnabledStates.end()) && it->second;
+}
+
+void SetEnabled(not_null<Main::Session*> session, bool value) {
+	gEnabledStates[session] = value;
+	GetService(session).setEnabled(value);
 }
 
 } // namespace Enterprise

@@ -68,4 +68,8 @@ private:
 
 };
 
+[[nodiscard]] BroadcastService &GetService(not_null<Main::Session*> session);
+[[nodiscard]] bool IsEnabled(not_null<Main::Session*> session);
+void SetEnabled(not_null<Main::Session*> session, bool value);
+
 } // namespace Enterprise
