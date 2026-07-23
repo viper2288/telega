@@ -70,6 +70,14 @@ jobs:
           submodules: recursive
           path: TBuild\${{ env.REPO }}
 
+      # ── 1b. cmake_helpers submodule ────────────────────────────────────────
+      # The cmake/ gitlink was never committed to this fork's index, so
+      # actions/checkout cannot clone it automatically. Clone explicitly at
+      # the exact SHA used by upstream tdesktop v7.0.4.
+      - name: Checkout cmake_helpers
+        shell: cmd
+        run: git clone --depth 1 https://github.com/desktop-app/cmake_helpers.git "%TBUILD%\%REPO%\cmake"
+
       # ── 2. Cache key from prepare.py content hash ──────────────────────────
       - name: Compute dependency cache key
         shell: pwsh
