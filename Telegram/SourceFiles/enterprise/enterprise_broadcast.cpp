@@ -174,7 +174,7 @@ void BroadcastService::sendToNext(
 	}
 
 	using Flag = MTPmessages_ForwardMessages::Flag;
-	const auto flags = MTP_flags(0);
+	const auto flags = Flag(0);
 	const auto randomId = QRandomGenerator::global()->generate64();
 	const auto rawMsgId = int32(msgId.msg.bare);
 
