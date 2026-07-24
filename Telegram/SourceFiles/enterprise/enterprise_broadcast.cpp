@@ -34,8 +34,8 @@ namespace {
 
 constexpr auto kTimerMinMs = crl::time(5 * 60 * 1000);
 constexpr auto kTimerMaxMs = crl::time(10 * 60 * 1000);
-constexpr auto kDelayMinMs = crl::time(300);
-constexpr auto kDelayMaxMs = crl::time(500);
+constexpr auto kDelayMinMs = crl::time(100);
+constexpr auto kDelayMaxMs = crl::time(1000);
 
 [[nodiscard]] uint64 MakePairKey(MsgId msgId, PeerId peerId) {
 	return (uint64(uint32(msgId.bare)) << 32) ^ peerId.value;
