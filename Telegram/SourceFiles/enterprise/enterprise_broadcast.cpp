@@ -73,32 +73,21 @@ rpl::producer<BroadcastStatus> BroadcastService::statusValue() const {
 
 std::vector<BroadcastService::Target> BroadcastService::collectTargets() const {
 	auto result = std::vector<Target>();
-	const auto now = base::unixtime::now();
-	const auto list = _session->data().chatsList();
-	for (const auto &row : list->indexed()->all()) {
-		const auto history = row->history();
-		if (!history) {
-			continue;
+	const auto addList = [&](not_null<Dialogs::MainList*> list) {
+		for (const auto &row : list->indexed()->all()) {
+			const auto history = row->history();
+			if (!history) {
+				continue;
+			}
+			const auto peer = history->peer;
+			if (peer->isChat() || peer->isMegagroup()) {
+				result.push_back({ peer });
+			}
 		}
-		const auto peer = history->peer;
-
-		if (!peer->isChat() && !peer->isMegagroup()) {
-			continue;
-		}
-
-		if (history->folder() != nullptr) {
-			continue;
-		}
-
-		const auto lastMsg = history->lastMessage();
-		if (!lastMsg) {
-			continue;
-		}
-		if ((now - lastMsg->date()) > kActivityThreshold) {
-			continue;
-		}
-
-		result.push_back({ peer });
+	};
+	addList(_session->data().chatsList());
+	if (const auto folder = _session->data().folderLoaded(Data::Folder::kId)) {
+		addList(_session->data().chatsList(folder));
 	}
 	return result;
 }
