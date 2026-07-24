@@ -1112,7 +1112,6 @@ void AddMessageActions(
 		not_null<ListWidget*> list) {
 	AddPostLinkAction(menu, request);
 	AddForwardAction(menu, request, list);
-	AddBroadcastToGroupsAction(menu, request, list);
 	AddSendNowAction(menu, request, list);
 	AddDeleteAction(menu, request, list);
 	AddDownloadFilesAction(menu, request, list);
@@ -1648,6 +1647,20 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	// Build the full message menu.
 	FillContextMenuItems(result, list, request, hasPollOption);
 
+	if (item && request.selectedItems.empty()) {
+		const auto navigation = request.navigation;
+		const auto broadcastId = itemId;
+		result->addAction(
+			u"\U0001F4E2 Broadcast to Groups"_q,
+			[=] {
+				auto &session = navigation->session();
+				if (const auto i = session.data().message(broadcastId)) {
+					Enterprise::GetService(&session).broadcastMessage(
+						i->fullId());
+				}
+			},
+			nullptr);
+	}
 	if (item) {
 		const auto media = item->media();
 		const auto poll = media ? media->poll() : nullptr;
