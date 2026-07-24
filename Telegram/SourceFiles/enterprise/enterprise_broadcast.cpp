@@ -79,14 +79,8 @@ std::vector<BroadcastService::Target> BroadcastService::collectTargets() const {
 				continue;
 			}
 			const auto peer = history->peer;
-			if (peer->isChat()) {
-				if (peer->asChat()->amIn()) {
-					result.push_back({ peer });
-				}
-			} else if (peer->isMegagroup()) {
-				if (peer->asChannel()->amIn()) {
-					result.push_back({ peer });
-				}
+			if (peer->isChat() || peer->isMegagroup()) {
+				result.push_back({ peer });
 			}
 		}
 	};
