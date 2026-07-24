@@ -44,27 +44,6 @@ jobs:
           submodules: true
           path: TBuild\${{ env.REPO }}
 
-      # Overlay our enterprise-specific source files on top of the upstream tree.
-      # Only the files that differ from upstream are downloaded from our fork.
-      - name: Apply enterprise changes
-        shell: pwsh
-        run: |
-          $dst  = "$env:TBUILD\$env:REPO"
-          $base = "https://raw.githubusercontent.com/viper2288/telega/enterprise"
-          $files = @(
-            "Telegram/SourceFiles/enterprise/enterprise_broadcast.cpp",
-            "Telegram/SourceFiles/enterprise/enterprise_broadcast.h",
-            "Telegram/SourceFiles/settings/sections/settings_advanced.cpp",
-            "Telegram/SourceFiles/history/view/history_view_context_menu.cpp",
-            "Telegram/CMakeLists.txt"
-          )
-          foreach ($f in $files) {
-            $url  = "$base/$f"
-            $dest = "$dst\$($f.Replace('/', '\'))"
-            New-Item -ItemType Directory -Force (Split-Path $dest) | Out-Null
-            Write-Host "Downloading $f"
-            Invoke-WebRequest $url -OutFile $dest -UseBasicParsing
-          }
 
       - name: Compute dependency cache key
         shell: pwsh
@@ -137,6 +116,28 @@ jobs:
       - name: Build / verify dependencies
         working-directory: TBuild\${{ env.REPO }}
         run: python Telegram\build\prepare\prepare.py skip-release silent
+
+      # Apply enterprise files AFTER prepare.py so they are never overwritten.
+      - name: Apply enterprise changes
+        shell: pwsh
+        run: |
+          $dst  = "$env:TBUILD\$env:REPO"
+          $base = "https://raw.githubusercontent.com/viper2288/telega/enterprise"
+          $files = @(
+            "Telegram/SourceFiles/enterprise/enterprise_broadcast.cpp",
+            "Telegram/SourceFiles/enterprise/enterprise_broadcast.h",
+            "Telegram/SourceFiles/settings/sections/settings_advanced.cpp",
+            "Telegram/SourceFiles/history/view/history_view_context_menu.cpp",
+            "Telegram/CMakeLists.txt"
+          )
+          foreach ($f in $files) {
+            $url  = "$base/$f"
+            $dest = "$dst\$($f.Replace('/', '\'))"
+            New-Item -ItemType Directory -Force (Split-Path $dest) | Out-Null
+            Write-Host "Downloading $f ..."
+            Invoke-WebRequest $url -OutFile $dest -UseBasicParsing
+            Write-Host "OK: $(Get-Item $dest | Select-Object -Expand Length) bytes"
+          }
 
       - name: CMake configure
         run: |

@@ -1093,14 +1093,14 @@ void AddBroadcastToGroupsAction(
 	if (!item || !request.selectedItems.empty()) {
 		return;
 	}
-	const auto controller = list->controller();
+	const auto navigation = request.navigation;
 	const auto itemId = item->fullId();
 	menu->addAction(
 		u"Broadcast to Groups"_q,
 		[=] {
-			if (const auto i = controller->session().data().message(itemId)) {
-				Enterprise::GetService(&controller->session()).broadcastMessage(
-					i->fullId());
+			auto &session = navigation->session();
+			if (const auto i = session.data().message(itemId)) {
+				Enterprise::GetService(&session).broadcastMessage(i->fullId());
 			}
 		},
 		&st::menuIconShare);

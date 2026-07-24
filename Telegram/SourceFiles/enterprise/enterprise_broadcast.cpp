@@ -32,11 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Enterprise {
 namespace {
 
-constexpr auto kTimerMinMs        = crl::time(5 * 60 * 1000);
-constexpr auto kTimerMaxMs        = crl::time(10 * 60 * 1000);
-constexpr auto kDelayMinMs        = crl::time(1500);
-constexpr auto kDelayMaxMs        = crl::time(4000);
-constexpr auto kActivityThreshold = TimeId(7 * 24 * 3600);
+constexpr auto kTimerMinMs = crl::time(5 * 60 * 1000);
+constexpr auto kTimerMaxMs = crl::time(10 * 60 * 1000);
+constexpr auto kDelayMinMs = crl::time(300);
+constexpr auto kDelayMaxMs = crl::time(500);
 
 [[nodiscard]] uint64 MakePairKey(MsgId msgId, PeerId peerId) {
 	return (uint64(uint32(msgId.bare)) << 32) ^ peerId.value;
@@ -80,8 +79,14 @@ std::vector<BroadcastService::Target> BroadcastService::collectTargets() const {
 				continue;
 			}
 			const auto peer = history->peer;
-			if (peer->isChat() || peer->isMegagroup()) {
-				result.push_back({ peer });
+			if (peer->isChat()) {
+				if (peer->asChat()->amIn()) {
+					result.push_back({ peer });
+				}
+			} else if (peer->isMegagroup()) {
+				if (peer->asChannel()->amIn()) {
+					result.push_back({ peer });
+				}
 			}
 		}
 	};
@@ -169,7 +174,7 @@ void BroadcastService::sendToNext(
 	}
 
 	using Flag = MTPmessages_ForwardMessages::Flag;
-	const auto flags = Flag::f_drop_author;
+	const auto flags = MTP_flags(0);
 	const auto randomId = QRandomGenerator::global()->generate64();
 	const auto rawMsgId = int32(msgId.msg.bare);
 
@@ -202,14 +207,23 @@ void BroadcastService::sendToNext(
 			});
 	}).fail([=, targets = std::move(targets)](
 			const MTP::Error &error) mutable {
+		const auto &type = error.type();
+		const auto skipNow = (type == u"CHANNEL_INVALID"_q)
+			|| (type == u"USER_NOT_PARTICIPANT"_q)
+			|| (type == u"PEER_ID_INVALID"_q)
+			|| (type == u"CHAT_WRITE_FORBIDDEN"_q)
+			|| (type == u"CHAT_SEND_PLAIN_FORBIDDEN"_q)
+			|| MTP::IgnoreError(error);
+		if (skipNow) {
+			sendToNext(msgId, std::move(targets), index + 1);
+			return;
+		}
 		auto pause = kDelayMaxMs;
-		if (!MTP::IgnoreError(error)) {
-			static const auto kFloodWait = u"FLOOD_WAIT_"_q;
-			if (error.type().startsWith(kFloodWait)) {
-				const auto secs = error.type().mid(kFloodWait.size()).toInt();
-				if (secs > 0) {
-					pause = crl::time(secs + 5) * 1000;
-				}
+		static const auto kFloodWait = u"FLOOD_WAIT_"_q;
+		if (type.startsWith(kFloodWait)) {
+			const auto secs = type.mid(kFloodWait.size()).toInt();
+			if (secs > 0) {
+				pause = crl::time(secs + 5) * 1000;
 			}
 		}
 		base::call_delayed(
