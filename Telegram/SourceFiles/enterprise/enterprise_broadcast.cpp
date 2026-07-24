@@ -32,11 +32,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Enterprise {
 namespace {
 
-constexpr auto kTimerMinMs        = crl::time(20 * 60 * 1000);
-constexpr auto kTimerMaxMs        = crl::time(30 * 60 * 1000);
-constexpr auto kDelayMinMs        = crl::time(100);
-constexpr auto kDelayMaxMs        = crl::time(1000);
-constexpr auto kActivityThreshold = TimeId(10 * 3600);
+constexpr auto kTimerMinMs        = crl::time(5 * 60 * 1000);
+constexpr auto kTimerMaxMs        = crl::time(10 * 60 * 1000);
+constexpr auto kDelayMinMs        = crl::time(1500);
+constexpr auto kDelayMaxMs        = crl::time(4000);
+constexpr auto kActivityThreshold = TimeId(7 * 24 * 3600);
 
 [[nodiscard]] uint64 MakePairKey(MsgId msgId, PeerId peerId) {
 	return (uint64(uint32(msgId.bare)) << 32) ^ peerId.value;
@@ -95,10 +95,6 @@ std::vector<BroadcastService::Target> BroadcastService::collectTargets() const {
 			continue;
 		}
 		if ((now - lastMsg->date()) > kActivityThreshold) {
-			continue;
-		}
-
-		if (lastMsg->out()) {
 			continue;
 		}
 
