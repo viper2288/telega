@@ -1,4 +1,4 @@
-﻿name: Enterprise Edition - Windows (Public CI)
+﻿name: Enterprise Edition - Windows (Public CI)  # build-22
 
 on:
   push:
