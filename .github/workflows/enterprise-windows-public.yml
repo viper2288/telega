@@ -138,6 +138,12 @@ jobs:
             Invoke-WebRequest $url -OutFile $dest -UseBasicParsing
             Write-Host "OK: $(Get-Item $dest | Select-Object -Expand Length) bytes"
           }
+          $ctxMenu = "$dst\Telegram\SourceFiles\history\view\history_view_context_menu.cpp"
+          if (-not (Select-String -Quiet -Pattern "AddBroadcastToGroupsAction" $ctxMenu)) {
+            Write-Error "FATAL: history_view_context_menu.cpp missing AddBroadcastToGroupsAction"
+            exit 1
+          }
+          Write-Host "Verified: AddBroadcastToGroupsAction present in context menu file"
 
       - name: CMake configure
         run: |

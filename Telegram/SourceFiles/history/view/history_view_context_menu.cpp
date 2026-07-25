@@ -1651,7 +1651,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		const auto navigation = request.navigation;
 		const auto broadcastId = itemId;
 		result->addAction(
-			u"\U0001F4E2 Broadcast to Groups"_q,
+			u"Broadcast to Groups"_q,
 			[=] {
 				auto &session = navigation->session();
 				if (const auto i = session.data().message(broadcastId)) {
@@ -1659,7 +1659,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 						i->fullId());
 				}
 			},
-			nullptr);
+			&st::menuIconForward);
 	}
 	if (item) {
 		const auto media = item->media();
