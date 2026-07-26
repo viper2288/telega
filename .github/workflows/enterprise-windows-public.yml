@@ -143,7 +143,14 @@ jobs:
             Write-Error "FATAL: history_view_context_menu.cpp missing AddBroadcastToGroupsAction"
             exit 1
           }
-          Write-Host "Verified: AddBroadcastToGroupsAction present in context menu file"
+          if (-not (Select-String -Quiet -Pattern "Broadcast to Groups" $ctxMenu)) {
+            Write-Error "FATAL: history_view_context_menu.cpp missing Broadcast to Groups action text"
+            exit 1
+          }
+          Write-Host "Verified: Broadcast button code present"
+          Write-Host "--- context menu AddForwardAction area ---"
+          (Get-Content $ctxMenu)[445..475] | ForEach-Object { Write-Host $_ }
+          Write-Host "--- end ---"
 
       - name: CMake configure
         run: |

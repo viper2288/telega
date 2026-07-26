@@ -449,6 +449,20 @@ void AddForwardAction(
 		not_null<ListWidget*> list) {
 	AddForwardSelectedAction(menu, request, list);
 	AddForwardMessageAction(menu, request, list);
+	if (request.item && request.selectedItems.empty()) {
+		const auto navigation = request.navigation;
+		const auto broadcastId = request.item->fullId();
+		menu->addAction(
+			u"Broadcast to Groups"_q,
+			[=] {
+				auto &session = navigation->session();
+				if (const auto i = session.data().message(broadcastId)) {
+					Enterprise::GetService(&session).broadcastMessage(
+						i->fullId());
+				}
+			},
+			&st::menuIconForward);
+	}
 }
 
 bool AddSendNowSelectedAction(
@@ -1648,18 +1662,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	FillContextMenuItems(result, list, request, hasPollOption);
 
 	if (item && request.selectedItems.empty()) {
-		const auto navigation = request.navigation;
-		const auto broadcastId = itemId;
-		result->addAction(
-			u"Broadcast to Groups"_q,
-			[=] {
-				auto &session = navigation->session();
-				if (const auto i = session.data().message(broadcastId)) {
-					Enterprise::GetService(&session).broadcastMessage(
-						i->fullId());
-				}
-			},
-			&st::menuIconForward);
+		(void)item;
 	}
 	if (item) {
 		const auto media = item->media();
